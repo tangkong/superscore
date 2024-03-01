@@ -1,5 +1,8 @@
+from typing import List
+
 import pytest
 
+from superscore.backends.core import _Backend
 from superscore.model import Collection, Parameter, Root, Snapshot, Value
 
 
@@ -51,3 +54,15 @@ def sample_database():
     root.entries.append(snap_1)
 
     return root
+
+
+@pytest.fixture
+def test_backends() -> List[_Backend]:
+    # TODO: make a sample backend fixtures
+    return []
+
+
+@pytest.fixture
+def backends(request, test_backends: List[_Backend]):
+    i = request.param
+    return test_backends[i]

@@ -1,0 +1,155 @@
+{
+  "entries": [
+    {
+      "Parameter": {
+        "meta_id": "3cdf0101-b52b-4f85-8d50-a783c995bed1",
+        "name": "parameter 1",
+        "description": "parameter in root",
+        "creation": "2024-02-27T23:56:40.490940",
+        "pv_name": "MY:MOTOR:mtr1.ACCL",
+        "read_only": false
+      }
+    },
+    {
+      "Value": {
+        "meta_id": "2a05002a-04e6-46e7-b6fb-4d53fa64d393",
+        "name": "value 1",
+        "description": "Value created from parameter 1",
+        "creation": "2024-02-27T23:56:40.490973",
+        "data": 2,
+        "origin": {
+          "meta_id": "3cdf0101-b52b-4f85-8d50-a783c995bed1",
+          "name": "parameter 1",
+          "description": "parameter in root",
+          "creation": "2024-02-27T23:56:40.490940",
+          "pv_name": "MY:MOTOR:mtr1.ACCL",
+          "read_only": false
+        }
+      }
+    },
+    {
+      "Collection": {
+        "meta_id": "342c1e12-fbe9-47cb-96ab-43105ab250a3",
+        "name": "collection 1",
+        "description": "collection defining some motor fields",
+        "creation": "2024-02-27T23:56:40.491000",
+        "parameters": [
+          {
+            "meta_id": "250ac539-dbaf-46bc-98c1-dee46d5021ac",
+            "name": "coll_1_field_ACCL",
+            "description": "motor field ACCL",
+            "creation": "2024-02-27T23:56:40.491169",
+            "pv_name": "MY:PREFIX:mtr1.ACCL",
+            "read_only": false
+          },
+          {
+            "meta_id": "c30e61dd-09ee-4b5c-9cc8-2bbe53ccbdf0",
+            "name": "coll_1_field_VELO",
+            "description": "motor field VELO",
+            "creation": "2024-02-27T23:56:40.491206",
+            "pv_name": "MY:PREFIX:mtr1.VELO",
+            "read_only": false
+          },
+          {
+            "meta_id": "86045b0e-7535-40fc-b183-0fe469ccd398",
+            "name": "coll_1_field_PREC",
+            "description": "motor field PREC",
+            "creation": "2024-02-27T23:56:40.491239",
+            "pv_name": "MY:PREFIX:mtr1.PREC",
+            "read_only": false
+          }
+        ],
+        "collections": []
+      }
+    },
+    {
+      "Snapshot": {
+        "meta_id": "7ec42acd-cf17-47fa-b00f-512c318bcb55",
+        "name": "snapshot 1",
+        "description": "Snapshot created from collection 1",
+        "creation": "2024-02-27T23:56:40.491138",
+        "origin": {
+          "meta_id": "342c1e12-fbe9-47cb-96ab-43105ab250a3",
+          "name": "collection 1",
+          "description": "collection defining some motor fields",
+          "creation": "2024-02-27T23:56:40.491000",
+          "parameters": [
+            {
+              "meta_id": "250ac539-dbaf-46bc-98c1-dee46d5021ac",
+              "name": "coll_1_field_ACCL",
+              "description": "motor field ACCL",
+              "creation": "2024-02-27T23:56:40.491169",
+              "pv_name": "MY:PREFIX:mtr1.ACCL",
+              "read_only": false
+            },
+            {
+              "meta_id": "c30e61dd-09ee-4b5c-9cc8-2bbe53ccbdf0",
+              "name": "coll_1_field_VELO",
+              "description": "motor field VELO",
+              "creation": "2024-02-27T23:56:40.491206",
+              "pv_name": "MY:PREFIX:mtr1.VELO",
+              "read_only": false
+            },
+            {
+              "meta_id": "86045b0e-7535-40fc-b183-0fe469ccd398",
+              "name": "coll_1_field_PREC",
+              "description": "motor field PREC",
+              "creation": "2024-02-27T23:56:40.491239",
+              "pv_name": "MY:PREFIX:mtr1.PREC",
+              "read_only": false
+            }
+          ],
+          "collections": []
+        },
+        "values": [
+          {
+            "meta_id": "91aa717f-a51f-4672-98d8-85a0523f5513",
+            "name": "coll_1_fld_ACCL value",
+            "description": "motor_field_ACCL value",
+            "creation": "2024-02-27T23:56:40.491187",
+            "data": 2,
+            "origin": {
+              "meta_id": "250ac539-dbaf-46bc-98c1-dee46d5021ac",
+              "name": "coll_1_field_ACCL",
+              "description": "motor field ACCL",
+              "creation": "2024-02-27T23:56:40.491169",
+              "pv_name": "MY:PREFIX:mtr1.ACCL",
+              "read_only": false
+            }
+          },
+          {
+            "meta_id": "29b23e86-36fd-4ca7-a626-44465d13f81f",
+            "name": "coll_1_fld_VELO value",
+            "description": "motor_field_VELO value",
+            "creation": "2024-02-27T23:56:40.491222",
+            "data": 2,
+            "origin": {
+              "meta_id": "c30e61dd-09ee-4b5c-9cc8-2bbe53ccbdf0",
+              "name": "coll_1_field_VELO",
+              "description": "motor field VELO",
+              "creation": "2024-02-27T23:56:40.491206",
+              "pv_name": "MY:PREFIX:mtr1.VELO",
+              "read_only": false
+            }
+          },
+          {
+            "meta_id": "40f1e153-2ae5-4940-9015-2ae49d3edd2f",
+            "name": "coll_1_fld_PREC value",
+            "description": "motor_field_PREC value",
+            "creation": "2024-02-27T23:56:40.491261",
+            "data": 6,
+            "origin": {
+              "meta_id": "86045b0e-7535-40fc-b183-0fe469ccd398",
+              "name": "coll_1_field_PREC",
+              "description": "motor field PREC",
+              "creation": "2024-02-27T23:56:40.491239",
+              "pv_name": "MY:PREFIX:mtr1.PREC",
+              "read_only": false
+            }
+          }
+        ],
+        "snapshots": []
+      }
+    }
+  ]
+}
