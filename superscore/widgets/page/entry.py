@@ -14,6 +14,7 @@ from superscore.control_layers._base_shim import EpicsData
 from superscore.model import (Collection, Nestable, Parameter, Readback,
                               Setpoint, Severity, Snapshot, Status)
 from superscore.type_hints import AnyEpicsType, OpenPageSlot
+from superscore.widgets import get_window
 from superscore.widgets.core import DataWidget, Display, NameDescTagsWidget
 from superscore.widgets.manip_helpers import (insert_widget,
                                               match_line_edit_text_width)
@@ -44,13 +45,11 @@ class NestablePage(Display, DataWidget):
         data: Nestable,
         client: Client,
         editable: bool = False,
-        open_page_slot: Optional[OpenPageSlot] = None,
         **kwargs
     ):
         super().__init__(*args, data=data, **kwargs)
         self.client = client
         self.editable = editable
-        self.open_page_slot = open_page_slot
         self._last_data = deepcopy(self.data)
         self.setup_ui()
 
@@ -61,7 +60,6 @@ class NestablePage(Display, DataWidget):
         # show tree view
         self.tree_view.client = self.client
         self.tree_view.set_data(self.data)
-        self.tree_view.open_page_slot = self.open_page_slot
 
         self.sub_pv_table_view.client = self.client
         self.sub_pv_table_view.set_data(self.data)
@@ -74,6 +72,12 @@ class NestablePage(Display, DataWidget):
         self.save_button.clicked.connect(self.save)
 
         self.set_editable(self.editable)
+
+    @property
+    def open_page_slot(self) -> Optional[OpenPageSlot]:
+        window = get_window()
+        if window is not None:
+            return window.open_page
 
     def set_editable(self, editable: bool) -> None:
         for col in self.sub_pv_table_view._model.header_enum:
@@ -161,18 +165,22 @@ class BaseParameterPage(Display, DataWidget):
         *args,
         client: Client,
         editable: bool = False,
-        open_page_slot: Optional[OpenPageSlot] = None,
         **kwargs
     ):
         super().__init__(*args, **kwargs)
         self.client = client
         self.editable = editable
-        self.open_page_slot = open_page_slot
         self.value_stored_widget = None
         self.edata = None
         self._edata_thread: Optional[BusyCursorThread] = None
         self._last_data = deepcopy(self.data)
         self.setup_ui()
+
+    @property
+    def open_page_slot(self) -> Optional[OpenPageSlot]:
+        window = get_window()
+        if window is not None:
+            return window.open_page
 
     def setup_ui(self):
         # initialize values

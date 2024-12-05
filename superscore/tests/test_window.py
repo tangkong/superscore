@@ -20,12 +20,14 @@ def count_visible_items(tree_view):
 def test_main_window(qtbot: QtBot, sample_client: Client):
     """Pass if main window opens successfully"""
     window = Window(client=sample_client)
+    print(window)
     qtbot.addWidget(window)
 
 
 @pytest.mark.parametrize("filestore_backend", ["db/filestore.json"], indirect=True)
 def test_sample_window(qtbot: QtBot, sample_client: Client):
     window = Window(client=sample_client)
+    print(window)
     qtbot.addWidget(window)
 
     assert count_visible_items(window.tree_view) == 4

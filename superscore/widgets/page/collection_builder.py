@@ -7,6 +7,7 @@ from qtpy.QtGui import QCloseEvent
 from superscore.client import Client
 from superscore.model import Collection, Entry, Parameter
 from superscore.type_hints import OpenPageSlot
+from superscore.widgets import get_window
 from superscore.widgets.core import DataWidget, Display, NameDescTagsWidget
 from superscore.widgets.enhanced import FilterComboBox
 from superscore.widgets.manip_helpers import insert_widget
@@ -48,14 +49,12 @@ class CollectionBuilderPage(Display, DataWidget):
         *args,
         client: Client,
         data: Optional[Collection] = None,
-        open_page_slot: Optional[OpenPageSlot] = None,
         **kwargs
     ):
         if data is None:
             data = Collection()
         super().__init__(*args, data=data, **kwargs)
         self.client = client
-        self.open_page_slot = open_page_slot
         self.tree_model = None
         self._coll_options: list[Collection] = []
         self._title = self.data.title
@@ -90,11 +89,16 @@ class CollectionBuilderPage(Display, DataWidget):
 
         self.tree_view.client = self.client
         self.tree_view.set_data(self.data)
-        self.tree_view.open_page_slot = self.open_page_slot
         self.tree_model: RootTree = self.tree_view.model()
 
         self.sub_coll_table_view.data_updated.connect(self.tree_model.refresh_tree)
         self.sub_pv_table_view.data_updated.connect(self.tree_model.refresh_tree)
+
+    @property
+    def open_page_slot(self) -> Optional[OpenPageSlot]:
+        window = get_window()
+        if window is not None:
+            return window.open_page
 
     def _update_title(self):
         """Set title attribute for access by containing widgets"""

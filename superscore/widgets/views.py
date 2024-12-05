@@ -25,7 +25,7 @@ from superscore.model import (Collection, Entry, Nestable, Parameter, Readback,
                               Root, Setpoint, Severity, Snapshot, Status)
 from superscore.qt_helpers import QDataclassBridge
 from superscore.type_hints import OpenPageSlot
-from superscore.widgets import ICON_MAP
+from superscore.widgets import ICON_MAP, get_window
 from superscore.widgets.core import QtSingleton
 
 logger = logging.getLogger(__name__)
@@ -37,15 +37,15 @@ PVEntry = Union[Parameter, Setpoint, Readback]
 def add_open_page_to_menu(
     menu: QtWidgets.QMenu,
     entry: Entry,
-    open_page_slot: OpenPageSlot
 ) -> None:
+    window = get_window()
     open_action = menu.addAction(
         f'&Open Detailed {type(entry).__name__} page'
     )
     # WeakPartialMethodSlot may not be needed, menus are transient
     # TODO: refactor to not require passing open_page_slot, maybe with window
     # singleton eventually
-    open_action.triggered.connect(partial(open_page_slot, entry))
+    open_action.triggered.connect(partial(window.open_page, entry))
 
 
 # Entries for comparison
@@ -618,13 +618,11 @@ class RootTreeView(QtWidgets.QTreeView):
         *args,
         client: Optional[Client] = None,
         entry: Optional[Entry] = None,
-        open_page_slot: Optional[OpenPageSlot] = None,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
         self._client = client
         self.data = entry
-        self.open_page_slot = open_page_slot
 
         self.setup_ui()
 
@@ -636,6 +634,12 @@ class RootTreeView(QtWidgets.QTreeView):
         self.customContextMenuRequested.connect(self._tree_context_menu)
         self.setExpandsOnDoubleClick(False)
         self.doubleClicked.connect(self.open_index)
+
+    @property
+    def open_page_slot(self) -> Optional[OpenPageSlot]:
+        window = get_window()
+        if window is not None:
+            return window.open_page
 
     @property
     def client(self):
@@ -1309,14 +1313,12 @@ class BaseDataTableView(QtWidgets.QTableView):
         *args,
         client: Optional[Client] = None,
         data: Optional[Union[Entry, List[Entry]]] = None,
-        open_page_slot: Optional[OpenPageSlot] = None,
         **kwargs,
     ) -> None:
         """need to set open_column, close_column in subclass"""
         super().__init__(*args, **kwargs)
         self.data = data
         self._client = client
-        self.open_page_slot = open_page_slot
         self.sub_entries = []
         self.model_kwargs = {}
 
@@ -1337,6 +1339,12 @@ class BaseDataTableView(QtWidgets.QTableView):
         # set context menu
         self.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         self.customContextMenuRequested.connect(self.create_context_menu_at_pos)
+
+    @property
+    def open_page_slot(self) -> Optional[OpenPageSlot]:
+        window = get_window()
+        if window is not None:
+            return window.open_page
 
     def open_row_details(self, index: QtCore.QModelIndex) -> None:
         """slot for opening row details page"""

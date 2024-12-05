@@ -12,7 +12,7 @@ from superscore.backends.core import SearchTerm
 from superscore.client import Client
 from superscore.model import Collection, Entry, Readback, Setpoint, Snapshot
 from superscore.type_hints import OpenPageSlot
-from superscore.widgets import ICON_MAP
+from superscore.widgets import ICON_MAP, get_window
 from superscore.widgets.core import Display
 from superscore.widgets.views import (BaseTableEntryModel, ButtonDelegate,
                                       HeaderEnum)
@@ -57,12 +57,10 @@ class SearchPage(Display, QtWidgets.QWidget):
         self,
         *args,
         client: Client,
-        open_page_slot: Optional[OpenPageSlot] = None,
         **kwargs
     ) -> None:
         super().__init__(*args, **kwargs)
         self.client = client
-        self.open_page_slot = open_page_slot
         self.model: Optional[ResultModel] = None
 
         self.type_checkboxes: List[QtWidgets.QCheckBox] = [
@@ -70,6 +68,12 @@ class SearchPage(Display, QtWidgets.QWidget):
             self.setpoint_checkbox, self.readback_checkbox,
         ]
         self.setup_ui()
+
+    @property
+    def open_page_slot(self) -> Optional[OpenPageSlot]:
+        window = get_window()
+        if window is not None:
+            return window.open_page
 
     def setup_ui(self) -> None:
         # set up filter option widgets
@@ -86,7 +90,7 @@ class SearchPage(Display, QtWidgets.QWidget):
 
         # set up filter table view
         self.model = ResultModel(entries=[])
-        self.proxy_model = ResultFilterProxyModel(open_page_slot=self.open_page_slot)
+        self.proxy_model = ResultFilterProxyModel()
         self.proxy_model.setSourceModel(self.model)
         self.results_table_view.setModel(self.proxy_model)
         self.results_table_view.setSortingEnabled(True)
@@ -235,12 +239,16 @@ class ResultFilterProxyModel(QtCore.QSortFilterProxyModel):
     def __init__(
         self,
         *args,
-        open_page_slot: Optional[OpenPageSlot] = None,
         **kwargs
     ) -> None:
         super().__init__(*args, **kwargs)
-        self.open_page_slot = open_page_slot
         self.name_regexp = QtCore.QRegularExpression()
+
+    @property
+    def open_page_slot(self) -> Optional[OpenPageSlot]:
+        window = get_window()
+        if window is not None:
+            return window.open_page
 
     def filterAcceptsRow(
         self,

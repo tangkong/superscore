@@ -11,6 +11,7 @@ from superscore.client import Client
 from superscore.compare import DiffType, EntryDiff
 from superscore.model import Entry
 from superscore.type_hints import OpenPageSlot
+from superscore.widgets import get_window
 from superscore.widgets.core import Display
 from superscore.widgets.views import (EntryItem, LivePVHeader,
                                       LivePVTableModel, LivePVTableView,
@@ -286,7 +287,6 @@ class DiffPage(Display, QtWidgets.QWidget):
         self,
         *args,
         client: Client,
-        open_page_slot: Optional[OpenPageSlot] = None,
         l_entry: Optional[Entry] = None,
         r_entry: Optional[Entry] = None,
         **kwargs
@@ -295,7 +295,6 @@ class DiffPage(Display, QtWidgets.QWidget):
         self.client = client
         self.l_entry = l_entry
         self.r_entry = r_entry
-        self.open_page_slot = open_page_slot
         self._linked_uuids: Dict[UUID, UUID] = BiDict()
 
         self.widget_map = {
@@ -313,6 +312,12 @@ class DiffPage(Display, QtWidgets.QWidget):
             }
         }
         self.setup_ui()
+
+    @property
+    def open_page_slot(self) -> Optional[OpenPageSlot]:
+        window = get_window()
+        if window is not None:
+            return window.open_page
 
     def setup_ui(self):
         """Initial ui setup.  Wire up slots and initialize models"""
@@ -332,13 +337,11 @@ class DiffPage(Display, QtWidgets.QWidget):
 
             pv_view: LivePVTableView = self.widget_map[side]['pv']
             pv_view._model_cls = DiffPVTableModel
-            pv_view.open_page_slot = self.open_page_slot
             pv_view.client = self.client
 
             nest_view: NestableTableView = self.widget_map[side]['nest']
             nest_view._model_cls = DiffNestableTableModel
             nest_view.client = self.client
-            nest_view.open_page_slot = self.open_page_slot
 
         self.set_entry(self.l_entry, Side.LEFT)
         self.set_entry(self.r_entry, Side.RIGHT)
