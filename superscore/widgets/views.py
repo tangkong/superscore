@@ -642,11 +642,20 @@ class RootTreeView(QtWidgets.QTreeView):
             return window.open_page
 
     @property
-    def client(self):
-        return self._client
+    def client(self) -> Optional[Client]:
+        # Return the provided client if it exists, grab the Window's otherwise
+        if self._client is not None:
+            return self._client
+        else:
+            window = get_window()
+            if window is not None:
+                return window.client
 
     @client.setter
     def client(self, client: Client):
+        if not isinstance(client, Client):
+            raise TypeError(f"Cannot set a {type(client)} as a client")
+
         if client is self._client:
             return
 
@@ -1407,14 +1416,23 @@ class BaseDataTableView(QtWidgets.QTableView):
         raise NotImplementedError
 
     @property
-    def client(self):
-        return self._client
+    def client(self) -> Optional[Client]:
+        # Return the provided client if it exists, grab the Window's otherwise
+        if self._client is not None:
+            return self._client
+        else:
+            window = get_window()
+            if window is not None:
+                return window.client
 
     @client.setter
     def client(self, client: Client):
         self._set_client(client)
 
     def _set_client(self, client: Client):
+        if not isinstance(client, Client):
+            raise TypeError(f"Cannot set a {type(client)} as a client")
+
         if client is self._client:
             return
 

@@ -60,7 +60,7 @@ class SearchPage(Display, QtWidgets.QWidget):
         **kwargs
     ) -> None:
         super().__init__(*args, **kwargs)
-        self.client = client
+        self._client = client
         self.model: Optional[ResultModel] = None
 
         self.type_checkboxes: List[QtWidgets.QCheckBox] = [
@@ -68,6 +68,26 @@ class SearchPage(Display, QtWidgets.QWidget):
             self.setpoint_checkbox, self.readback_checkbox,
         ]
         self.setup_ui()
+
+    @property
+    def client(self) -> Optional[Client]:
+        # Return the provided client if it exists, grab the Window's otherwise
+        if self._client is not None:
+            return self._client
+        else:
+            window = get_window()
+            if window is not None:
+                return window.client
+
+    @client.setter
+    def client(self, client: Client):
+        if not isinstance(client, Client):
+            raise TypeError(f"Cannot set a {type(client)} as a client")
+
+        if client is self._client:
+            return
+
+        self._client = client
 
     @property
     def open_page_slot(self) -> Optional[OpenPageSlot]:

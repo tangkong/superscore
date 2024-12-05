@@ -48,10 +48,30 @@ class NestablePage(Display, DataWidget):
         **kwargs
     ):
         super().__init__(*args, data=data, **kwargs)
-        self.client = client
+        self._client = client
         self.editable = editable
         self._last_data = deepcopy(self.data)
         self.setup_ui()
+
+    @property
+    def client(self) -> Optional[Client]:
+        # Return the provided client if it exists, grab the Window's otherwise
+        if self._client is not None:
+            return self._client
+        else:
+            window = get_window()
+            if window is not None:
+                return window.client
+
+    @client.setter
+    def client(self, client: Client):
+        if not isinstance(client, Client):
+            raise TypeError(f"Cannot set a {type(client)} as a client")
+
+        if client is self._client:
+            return
+
+        self._client = client
 
     def setup_ui(self):
         self.meta_widget = NameDescTagsWidget(data=self.data)
@@ -163,18 +183,38 @@ class BaseParameterPage(Display, DataWidget):
     def __init__(
         self,
         *args,
-        client: Client,
+        client: Optional[Client] = None,
         editable: bool = False,
         **kwargs
     ):
         super().__init__(*args, **kwargs)
-        self.client = client
+        self._client = client
         self.editable = editable
         self.value_stored_widget = None
         self.edata = None
         self._edata_thread: Optional[BusyCursorThread] = None
         self._last_data = deepcopy(self.data)
         self.setup_ui()
+
+    @property
+    def client(self) -> Optional[Client]:
+        # Return the provided client if it exists, grab the Window's otherwise
+        if self._client is not None:
+            return self._client
+        else:
+            window = get_window()
+            if window is not None:
+                return window.client
+
+    @client.setter
+    def client(self, client: Client):
+        if not isinstance(client, Client):
+            raise TypeError(f"Cannot set a {type(client)} as a client")
+
+        if client is self._client:
+            return
+
+        self._client = client
 
     @property
     def open_page_slot(self) -> Optional[OpenPageSlot]:

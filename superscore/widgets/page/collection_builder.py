@@ -54,12 +54,32 @@ class CollectionBuilderPage(Display, DataWidget):
         if data is None:
             data = Collection()
         super().__init__(*args, data=data, **kwargs)
-        self.client = client
+        self._client = client
         self.tree_model = None
         self._coll_options: list[Collection] = []
         self._title = self.data.title
         # TODO: fill uuids here
         self.setup_ui()
+
+    @property
+    def client(self) -> Optional[Client]:
+        # Return the provided client if it exists, grab the Window's otherwise
+        if self._client is not None:
+            return self._client
+        else:
+            window = get_window()
+            if window is not None:
+                return window.client
+
+    @client.setter
+    def client(self, client: Client):
+        if not isinstance(client, Client):
+            raise TypeError(f"Cannot set a {type(client)} as a client")
+
+        if client is self._client:
+            return
+
+        self._client = client
 
     def setup_ui(self):
         self.meta_widget = NameDescTagsWidget(data=self.data)
