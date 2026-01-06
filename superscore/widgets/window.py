@@ -142,6 +142,24 @@ class Window(Display, QtWidgets.QMainWindow, metaclass=QtSingleton):
         index = self.tab_widget.addTab(page, 'search')
         self.tab_widget.setCurrentIndex(index)
 
+    def open_search_page_with_filter(self, saved_filter) -> None:
+        """Open search page and load a filter"""
+        # check if search page already exists
+        page = None
+        for i in range(self.tab_widget.count()):
+            widget = self.tab_widget.widget(i)
+            if isinstance(widget, SearchPage):
+                page = widget
+                self.tab_widget.setCurrentIndex(i)
+                break
+
+        if page is None:
+            page = SearchPage(client=self.client)
+            index = self.tab_widget.addTab(page, 'search')
+            self.tab_widget.setCurrentIndex(index)
+
+        page.load_filter(saved_filter)
+
     def open_restore_page(self, snapshot: Snapshot) -> None:
         page = RestorePage(data=snapshot, client=self.client)
         index = self.tab_widget.addTab(page, snapshot.title)

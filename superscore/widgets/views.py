@@ -23,6 +23,7 @@ from superscore.errors import EntryNotFoundError
 from superscore.model import (Collection, Entry, Nestable, Parameter, Readback,
                               Root, Setpoint, Severity, Snapshot, Status)
 from superscore.qt_helpers import QDataclassBridge
+from superscore.saved_filters import SavedFilter, SavedFiltersManager
 from superscore.widgets import ICON_MAP, get_window
 from superscore.widgets.core import QtSingleton, WindowLinker
 from superscore.widgets.thread_helpers import get_qthread_cache
@@ -134,11 +135,11 @@ class EntryItem:
         WeakValueDictionary[int, QDataclassBridge]
     ] = WeakValueDictionary()
     bridge: QDataclassBridge
-    _data: Entry
+    _data: Union[Entry, SavedFilter, str]
 
     def __init__(
         self,
-        data: Entry,
+        data: Union[Entry, SavedFilter, str],
         tree_parent: Optional[EntryItem] = None,
     ):
         self._data = data
@@ -154,7 +155,7 @@ class EntryItem:
         # Assign bridge, for updating the entry properties when data changes?
         # For this to be relevant we need to subscribe to the bridge,
         # for example to change icons on type update
-        if self._data:
+        if self._data and isinstance(self._data, Entry):
             try:
                 self.bridge = self._bridge_cache[id(data)]
             except KeyError:
@@ -213,9 +214,17 @@ class EntryItem:
         if column == 0:
             if isinstance(self._data, Nestable):
                 return getattr(self._data, 'title', 'root')
+            elif isinstance(self._data, SavedFilter):
+                return self._data.name
+            elif isinstance(self._data, str):
+                return self._data
             else:
                 return getattr(self._data, 'pv_name', '<no pv>')
         elif column == 1:
+            if isinstance(self._data, SavedFilter):
+                return "Saved Filter"
+            elif isinstance(self._data, str):
+                return ""
             return getattr(self._data, 'description', '<no desc>')
 
         # TODO: something about icons
@@ -224,6 +233,10 @@ class EntryItem:
         """Construct the tooltip based on the stored entry"""
         if isinstance(self._data, UUID):
             return str(self._data)
+        if isinstance(self._data, SavedFilter):
+            return self._data.name
+        if isinstance(self._data, str):
+            return self._data
         return str(self._data.uuid)
 
     def columnCount(self) -> int:
@@ -324,6 +337,11 @@ class EntryItem:
 
     def icon(self):
         """return icon for this item"""
+        if isinstance(self._data, SavedFilter):
+            return qta.icon("fa.filter")
+        if isinstance(self._data, str):
+            return qta.icon("fa.folder")
+
         icon_id = ICON_MAP.get(type(self._data), None)
         if icon_id is None:
             return
@@ -394,9 +412,19 @@ class RootTree(QtCore.QAbstractItemModel):
         self.root_item.fill_uuids(self.client)
         self.headers = ['name', 'description']
 
+        # Add Saved Filters node
+        self.add_saved_filters_node()
+
+    def add_saved_filters_node(self):
+        self.saved_filters_root = EntryItem("Saved Filters", tree_parent=self.root_item)
+        manager = SavedFiltersManager()
+        for saved_filter in manager.get_filters():
+            EntryItem(saved_filter, tree_parent=self.saved_filters_root)
+
     def refresh_tree(self) -> None:
         self.layoutAboutToBeChanged.emit()
         self.root_item = build_tree(self.base_entry)
+        self.add_saved_filters_node()
         self.layoutChanged.emit()
 
     def headerData(
@@ -686,10 +714,10 @@ class RootTreeView(QtWidgets.QTreeView, WindowLinker):
     def _tree_context_menu(self, pos: QtCore.QPoint) -> None:
         index: QtCore.QModelIndex = self.indexAt(pos)
         if index is not None and index.data() is not None:
-            entry: Entry = index.internalPointer()._data
-            menu = self.create_context_menu(entry)
-
-            menu.exec_(self.mapToGlobal(pos))
+            if hasattr(index.internalPointer(), '_data') and isinstance(index.internalPointer()._data, Entry):
+                entry: Entry = index.internalPointer()._data
+                menu = self.create_context_menu(entry)
+                menu.exec_(self.mapToGlobal(pos))
 
     def create_context_menu(self, entry: Entry) -> QtWidgets.QMenu:
         """
@@ -710,8 +738,14 @@ class RootTreeView(QtWidgets.QTreeView, WindowLinker):
         return menu
 
     def open_index(self, index: QtCore.QModelIndex) -> None:
-        entry: Entry = index.internalPointer()._data
-        self.open_page(entry)
+        if isinstance(index.internalPointer()._data, SavedFilter):
+             # Load filter in search page
+             window = get_window()
+             if window:
+                 window.open_search_page_with_filter(index.internalPointer()._data)
+        elif isinstance(index.internalPointer()._data, Entry):
+            entry: Entry = index.internalPointer()._data
+            self.open_page(entry)
 
     def open_page(self, entry):
         """Simple wrapper around the open page slot"""
