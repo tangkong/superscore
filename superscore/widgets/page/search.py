@@ -1,9 +1,13 @@
 """Search page"""
 
+import json
 import logging
+import os
+from dataclasses import asdict, dataclass
 from enum import auto
 from typing import Any, Dict, List, Optional
 
+import apischema
 import qtawesome as qta
 from dateutil import tz
 from qtpy import QtCore, QtWidgets
@@ -16,6 +20,71 @@ from superscore.widgets.views import (BaseTableEntryModel, ButtonDelegate,
                                       HeaderEnum)
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class SavedFilter:
+    name: str
+    types: List[str]
+    name_filter: str
+    desc_filter: str
+    pv_filter: str
+    start_time: str
+    end_time: str
+
+
+class SavedFilterHeader(HeaderEnum):
+    NAME = 0
+
+
+class SavedFiltersModel(QtCore.QAbstractTableModel):
+    """
+    Model for displaying SavedFilter objects in a QTableView.
+    """
+    def __init__(self, filters: List[SavedFilter] = None, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        if filters is None:
+            self.filters = []
+        else:
+            self.filters = filters
+        self.headers = ["Name"]
+
+    def rowCount(self, parent=QtCore.QModelIndex()) -> int:
+        return len(self.filters)
+
+    def columnCount(self, parent=QtCore.QModelIndex()) -> int:
+        return len(self.headers)
+
+    def data(self, index: QtCore.QModelIndex, role: int = QtCore.Qt.DisplayRole) -> Any:
+        if not index.isValid():
+            return None
+
+        if role == QtCore.Qt.DisplayRole:
+            filter_obj = self.filters[index.row()]
+            if index.column() == SavedFilterHeader.NAME:
+                return filter_obj.name
+
+        return None
+
+    def headerData(self, section: int, orientation: QtCore.Qt.Orientation, role: int = QtCore.Qt.DisplayRole) -> Any:
+        if role == QtCore.Qt.DisplayRole and orientation == QtCore.Qt.Horizontal:
+            return self.headers[section]
+        return None
+
+    def add_filter(self, filter_obj: SavedFilter) -> None:
+        self.beginInsertRows(QtCore.QModelIndex(), len(self.filters), len(self.filters))
+        self.filters.append(filter_obj)
+        self.endInsertRows()
+
+    def remove_row(self, row: int) -> None:
+        self.beginRemoveRows(QtCore.QModelIndex(), row, row)
+        self.filters.pop(row)
+        self.endRemoveRows()
+
+    def get_filter(self, row: int) -> Optional[SavedFilter]:
+        if 0 <= row < len(self.filters):
+            return self.filters[row]
+        return None
 
 
 class SearchPage(Display, QtWidgets.QWidget, WindowLinker):
@@ -63,6 +132,10 @@ class SearchPage(Display, QtWidgets.QWidget, WindowLinker):
             self.snapshot_checkbox, self.collection_checkbox,
             self.setpoint_checkbox, self.readback_checkbox,
         ]
+
+        self.saved_filters: List[SavedFilter] = []
+        self.load_saved_filters_from_disk()
+
         self.setup_ui()
 
     def setup_ui(self) -> None:
@@ -78,7 +151,7 @@ class SearchPage(Display, QtWidgets.QWidget, WindowLinker):
         self.setpoint_checkbox.setIcon(qta.icon(ICON_MAP[Setpoint]))
         self.readback_checkbox.setIcon(qta.icon(ICON_MAP[Readback]))
 
-        # set up filter table view
+        # set up results table view
         self.model = ResultModel(entries=[])
         self.proxy_model = ResultFilterProxyModel()
         self.proxy_model.setSourceModel(self.model)
@@ -93,6 +166,28 @@ class SearchPage(Display, QtWidgets.QWidget, WindowLinker):
         self.open_delegate.clicked.connect(self.proxy_model.open_row)
 
         self.name_subfilter_line_edit.textChanged.connect(self.subfilter_results)
+
+        # set up saved filters table view
+        self.saved_filters_model = SavedFiltersModel(self.saved_filters)
+        self.filter_table_view.setModel(self.saved_filters_model)
+        self.filter_table_view.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.Stretch)
+        self.filter_table_view.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
+        self.filter_table_view.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
+
+        # Connect save button
+        self.save_filter_button.clicked.connect(self.save_current_filter)
+
+        # Add load button (since not in ui file)
+        # We need to find where save_filter_button is and add load button next to it.
+        # Assuming they are in a layout.
+        if self.save_filter_button.parentWidget():
+            parent_layout = self.save_filter_button.parentWidget().layout()
+            if parent_layout:
+                self.load_filter_button = QtWidgets.QPushButton("Load Filter")
+                self.load_filter_button.clicked.connect(self.load_selected_filter)
+                # Find index of save button and insert after
+                index = parent_layout.indexOf(self.save_filter_button)
+                parent_layout.insertWidget(index + 1, self.load_filter_button)
 
     def _gather_search_terms(self) -> Dict[str, Any]:
         search_terms = []
@@ -153,6 +248,93 @@ class SearchPage(Display, QtWidgets.QWidget, WindowLinker):
         """Filter the table once more by name"""
         self.proxy_model.name_regexp.setPattern(self.name_subfilter_line_edit.text())
         self.proxy_model.invalidateFilter()
+
+    def get_filters_path(self) -> str:
+        """Return the path to the filters configuration file."""
+        return os.path.expanduser("~/.superscore/filters.json")
+
+    def load_saved_filters_from_disk(self) -> None:
+        """Load saved filters from disk."""
+        path = self.get_filters_path()
+        if not os.path.exists(path):
+            self.saved_filters = []
+            return
+
+        try:
+            with open(path, 'r') as f:
+                data = json.load(f)
+                self.saved_filters = [apischema.deserialize(SavedFilter, item) for item in data]
+        except Exception as e:
+            logger.error(f"Failed to load filters from {path}: {e}")
+            self.saved_filters = []
+
+    def save_filters_to_disk(self) -> None:
+        """Save filters to disk."""
+        path = self.get_filters_path()
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        try:
+            with open(path, 'w') as f:
+                data = [apischema.serialize(item) for item in self.saved_filters]
+                json.dump(data, f, indent=2)
+        except Exception as e:
+            logger.error(f"Failed to save filters to {path}: {e}")
+
+    def save_current_filter(self) -> None:
+        """Save the current filter configuration."""
+        name, ok = QtWidgets.QInputDialog.getText(self, "Save Filter", "Filter Name:")
+        if not ok or not name:
+            return
+
+        # Gather widget states
+        types = []
+        for checkbox, entry_type in zip(
+            self.type_checkboxes,
+            ("Snapshot", "Collection", "Setpoint", "Readback")
+        ):
+            if checkbox.isChecked():
+                types.append(entry_type)
+
+        saved_filter = SavedFilter(
+            name=name,
+            types=types,
+            name_filter=self.name_line_edit.text(),
+            desc_filter=self.desc_line_edit.text(),
+            pv_filter=self.pv_line_edit.text(),
+            start_time=self.start_dt_edit.dateTime().toString(QtCore.Qt.ISODate),
+            end_time=self.end_dt_edit.dateTime().toString(QtCore.Qt.ISODate),
+        )
+
+        self.saved_filters_model.add_filter(saved_filter)
+        self.save_filters_to_disk()
+
+    def load_selected_filter(self) -> None:
+        """Load the selected filter into the widgets."""
+        selection = self.filter_table_view.selectionModel().selectedRows()
+        if not selection:
+            return
+
+        row = selection[0].row()
+        saved_filter = self.saved_filters_model.get_filter(row)
+        if not saved_filter:
+            return
+
+        # Restore widgets
+        self.name_line_edit.setText(saved_filter.name_filter)
+        self.desc_line_edit.setText(saved_filter.desc_filter)
+        self.pv_line_edit.setText(saved_filter.pv_filter)
+
+        for checkbox, entry_type in zip(
+            self.type_checkboxes,
+            ("Snapshot", "Collection", "Setpoint", "Readback")
+        ):
+            checkbox.setChecked(entry_type in saved_filter.types)
+
+        if saved_filter.start_time:
+            self.start_dt_edit.setDateTime(QtCore.QDateTime.fromString(saved_filter.start_time, QtCore.Qt.ISODate))
+        if saved_filter.end_time:
+            self.end_dt_edit.setDateTime(QtCore.QDateTime.fromString(saved_filter.end_time, QtCore.Qt.ISODate))
+
+        self.show_current_filter()
 
 
 class ResultsHeader(HeaderEnum):
