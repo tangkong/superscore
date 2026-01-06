@@ -1,36 +1,22 @@
 """Search page"""
 
-import json
 import logging
-import os
-from dataclasses import asdict, dataclass
 from enum import auto
 from typing import Any, Dict, List, Optional
 
-import apischema
 import qtawesome as qta
 from dateutil import tz
 from qtpy import QtCore, QtWidgets
 
 from superscore.backends.core import SearchTerm
 from superscore.model import Collection, Entry, Readback, Setpoint, Snapshot
+from superscore.saved_filters import SavedFilter, SavedFiltersManager
 from superscore.widgets import ICON_MAP
 from superscore.widgets.core import Display, WindowLinker
 from superscore.widgets.views import (BaseTableEntryModel, ButtonDelegate,
                                       HeaderEnum)
 
 logger = logging.getLogger(__name__)
-
-
-@dataclass
-class SavedFilter:
-    name: str
-    types: List[str]
-    name_filter: str
-    desc_filter: str
-    pv_filter: str
-    start_time: str
-    end_time: str
 
 
 class SavedFilterHeader(HeaderEnum):
@@ -73,13 +59,18 @@ class SavedFiltersModel(QtCore.QAbstractTableModel):
 
     def add_filter(self, filter_obj: SavedFilter) -> None:
         self.beginInsertRows(QtCore.QModelIndex(), len(self.filters), len(self.filters))
+        # This appends to the reference passed in __init__, which comes from Manager
         self.filters.append(filter_obj)
         self.endInsertRows()
+        # Trigger save in manager
+        SavedFiltersManager().save_to_disk()
 
     def remove_row(self, row: int) -> None:
         self.beginRemoveRows(QtCore.QModelIndex(), row, row)
         self.filters.pop(row)
         self.endRemoveRows()
+        # Trigger save in manager
+        SavedFiltersManager().save_to_disk()
 
     def get_filter(self, row: int) -> Optional[SavedFilter]:
         if 0 <= row < len(self.filters):
@@ -133,8 +124,9 @@ class SearchPage(Display, QtWidgets.QWidget, WindowLinker):
             self.setpoint_checkbox, self.readback_checkbox,
         ]
 
-        self.saved_filters: List[SavedFilter] = []
-        self.load_saved_filters_from_disk()
+        # Load filters via manager
+        self.saved_filters_manager = SavedFiltersManager()
+        self.saved_filters = self.saved_filters_manager.get_filters()
 
         self.setup_ui()
 
@@ -178,8 +170,6 @@ class SearchPage(Display, QtWidgets.QWidget, WindowLinker):
         self.save_filter_button.clicked.connect(self.save_current_filter)
 
         # Add load button (since not in ui file)
-        # We need to find where save_filter_button is and add load button next to it.
-        # Assuming they are in a layout.
         if self.save_filter_button.parentWidget():
             parent_layout = self.save_filter_button.parentWidget().layout()
             if parent_layout:
@@ -249,36 +239,6 @@ class SearchPage(Display, QtWidgets.QWidget, WindowLinker):
         self.proxy_model.name_regexp.setPattern(self.name_subfilter_line_edit.text())
         self.proxy_model.invalidateFilter()
 
-    def get_filters_path(self) -> str:
-        """Return the path to the filters configuration file."""
-        return os.path.expanduser("~/.superscore/filters.json")
-
-    def load_saved_filters_from_disk(self) -> None:
-        """Load saved filters from disk."""
-        path = self.get_filters_path()
-        if not os.path.exists(path):
-            self.saved_filters = []
-            return
-
-        try:
-            with open(path, 'r') as f:
-                data = json.load(f)
-                self.saved_filters = [apischema.deserialize(SavedFilter, item) for item in data]
-        except Exception as e:
-            logger.error(f"Failed to load filters from {path}: {e}")
-            self.saved_filters = []
-
-    def save_filters_to_disk(self) -> None:
-        """Save filters to disk."""
-        path = self.get_filters_path()
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        try:
-            with open(path, 'w') as f:
-                data = [apischema.serialize(item) for item in self.saved_filters]
-                json.dump(data, f, indent=2)
-        except Exception as e:
-            logger.error(f"Failed to save filters to {path}: {e}")
-
     def save_current_filter(self) -> None:
         """Save the current filter configuration."""
         name, ok = QtWidgets.QInputDialog.getText(self, "Save Filter", "Filter Name:")
@@ -305,7 +265,7 @@ class SearchPage(Display, QtWidgets.QWidget, WindowLinker):
         )
 
         self.saved_filters_model.add_filter(saved_filter)
-        self.save_filters_to_disk()
+        # Manager save is triggered by model add_filter
 
     def load_selected_filter(self) -> None:
         """Load the selected filter into the widgets."""
@@ -318,6 +278,10 @@ class SearchPage(Display, QtWidgets.QWidget, WindowLinker):
         if not saved_filter:
             return
 
+        self.load_filter(saved_filter)
+
+    def load_filter(self, saved_filter: SavedFilter) -> None:
+        """Populate widgets with saved filter data."""
         # Restore widgets
         self.name_line_edit.setText(saved_filter.name_filter)
         self.desc_line_edit.setText(saved_filter.desc_filter)
