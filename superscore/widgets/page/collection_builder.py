@@ -52,7 +52,8 @@ class CollectionBuilderPage(Display, DataWidget[Collection]):
         super().__init__(*args, data=data, **kwargs)
         self._coll_options: list[Collection] = []
         self._title = self.data.title
-        # TODO: fill uuids here
+        if self.client:
+            self.client.fill(self.data)
         self.setup_ui()
 
     def setup_ui(self):
